@@ -13,8 +13,9 @@ import (
 
 // User struct that contains information of users of this irc
 type User struct {
-	Nickname string `json:"nickname"`
-	ID       int    `json:"id"`
+	Nickname   string  `json:"nickname"`
+	ID         int     `json:"id"`
+	Connection Channel `json:"connection"`
 }
 
 // Channel struct that contains information of various channels

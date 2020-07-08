@@ -88,6 +88,16 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+func readAllUsers(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(Users)
+}
+
+func readUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["identifier"]
+	json.NewEncoder(w).Encode(Users[key])
+}
+
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homePage)
@@ -95,7 +105,8 @@ func handleRequests() {
 	router.HandleFunc("/channels", readAllChannels)
 	router.HandleFunc("/channel/{identifier}", readChannel)
 	router.HandleFunc("/user", createUser).Methods("POST")
-	//log.Fatal(http.ListenAndServe("100.1.219.194:7777", router))
+	router.HandleFunc("/users", readAllUsers)
+	router.HandleFunc("/user/{identifier}", readUser)
 	log.Fatalln(http.ListenAndServe(":7777", router))
 }
 
@@ -128,6 +139,20 @@ func main() {
 					ID:       0,
 				},
 			},
+		},
+	}
+	Users = map[string]User{
+		"Matt": User{
+			Nickname: "Matt",
+			ID:       0,
+		},
+		"Darius": User{
+			Nickname: "Darius",
+			ID:       0,
+		},
+		"Jasmine": User{
+			Nickname: "Jasmine",
+			ID:       0,
 		},
 	}
 	handleRequests()

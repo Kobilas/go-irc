@@ -50,7 +50,14 @@ func showAllChannels() string {
 		return "The HTTP request failed with error"
 	}
 	data, _ := ioutil.ReadAll(response.Body)
-	return string(data)
+	var channels []Channel
+	var result string
+	json.Unmarshal(data, &channels)
+	for _, line := range channels {
+		result += line.ChannelName + "\n"
+	}
+	fmt.Println("\nList of All Channels:")
+	return result
 }
 
 func createChannel(channelName string, names ...string) string {
@@ -176,13 +183,13 @@ func readUser(name string) bool {
 		Connection: "",
 	}
 	jsonValue, _ := json.Marshal(jsonData)
-	response, err := http.Post("http://100.1.219.194:7777/user/"+name, "application/json", bytes.NewBuffer(jsonValue))
+	response, err := http.Post(domain+"user/"+name, "application/json", bytes.NewBuffer(jsonValue))
 
 	data, _ := ioutil.ReadAll(response.Body)
 	var user User
 	json.Unmarshal(data, &user)
 	if err != nil {
-		fmt.Printf("The HTTP request failed with error %s\n", err)
+		fmt.Printf("error: readUser, the HTTP request failed with error %s\n", err)
 		return false
 	} else if user.Nickname != name {
 		return false
@@ -199,10 +206,10 @@ func createUser(name string) {
 		Connection: "",
 	}
 	jsonValue, _ := json.Marshal(jsonData)
-	_, err := http.Post("http://100.1.219.194:7777/user", "application/json", bytes.NewBuffer(jsonValue))
+	_, err := http.Post(domain+"user", "application/json", bytes.NewBuffer(jsonValue))
 
 	if err != nil {
-		fmt.Printf("The HTTP request failed with error %s\n", err)
+		fmt.Printf("error: createUser, the HTTP request failed with error %s\n", err)
 	} else {
 		fmt.Println("Logged in as ", jsonData.Nickname)
 	}
@@ -215,9 +222,6 @@ func receiveMessages() {
 }
 
 func checkCommands(line string) {
-	if string(line[0]) != "/" {
-		return
-	}
 	tok := strings.Split(line, " ")
 	switch tok[0] {
 	case "/help":

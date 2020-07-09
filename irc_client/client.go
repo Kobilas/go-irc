@@ -17,6 +17,9 @@ var channel string
 var nickName string
 var BIGTIME int64
 
+var privateTimestamp int64
+var channelTimestamp int64
+
 type User struct {
 	Nickname string `json:"nickname"`
 	ID       int    `json:"id"`
@@ -90,33 +93,15 @@ func joinChannel(channelName string, name string) {
 
 		BIGTIME = 0
 
-		var choice bool = true
-
-		go readChannelChat(BIGTIME, channelName)
-
-		var i int
-		for choice {
-			i++
-
-			/*choice = !choice
-			switch choice {
-			case true:
-				time.Sleep(time.Second * 2)
-				readChannelChat(BIGTIME, channelName)
-			case false:
-				time.Sleep(time.Nanosecond * 5)*/
-
-			go func() {
-				scanner := bufio.NewScanner(os.Stdin)
-				if scanner.Scan() {
-					fmt.Println(i)
-					line := scanner.Text()
-					if line == "/exit" {
-						choice = false
-					}
-					sendChannelChat(line, channelName)
+		for {
+			scanner := bufio.NewScanner(os.Stdin)
+			if scanner.Scan() {
+				line := scanner.Text()
+				if line == "/exit" {
+					break
 				}
-			}()
+				sendChannelChat(line, channelName)
+			}
 		}
 	}
 
@@ -154,22 +139,19 @@ func sendPrivateMessage(personName string, body ...string) string {
 	}
 }
 
-func receivePrivateMessages(timestamp int64) {
-	url := "http://100.1.219.194:7777/chat/recv/-" + nickName + "/" + strconv.FormatInt(timestamp, 10)
+func receivePrivateMessages() {
 	for {
-		response, err := http.Get(url)
+		response, err := http.Get("http://100.1.219.194:7777/chat/recv/-" + nickName + "/" + strconv.FormatInt(privateTimestamp, 10))
 		if err != nil {
 			fmt.Printf("The HTTP request failed with error %s\n", err)
 		} else {
 			data, _ := ioutil.ReadAll(response.Body)
-			var chat []Chat
-			json.Unmarshal(data, &chat)
-			for _, line := range chat {
-				if line.Timestamp > BIGTIME {
-					result := "Private Message from " + line.Sender + ": " + line.Text
-					fmt.Println(result)
-					BIGTIME = line.Timestamp
-				}
+			var chats []Chat
+			json.Unmarshal(data, &chats)
+			for _, line := range chats {
+				result := "Private Message from " + line.Sender + ": " + line.Text
+				fmt.Println(result)
+				privateTimestamp = line.Timestamp
 			}
 		}
 	}
@@ -194,28 +176,31 @@ func sendChannelChat(body string, channelName string) string {
 	}
 }
 
-func readChannelChat(timestamp int64, channelName string) {
-	url := "http://100.1.219.194:7777/chat/recv/+" + channelName + "/" + strconv.FormatInt(timestamp, 10)
-
+func readChannelChat() {
 	for {
-		response, err := http.Get(url)
-
+		if channel == "" {
+			continue
+		}
+		response, err := http.Get("http://100.1.219.194:7777/chat/recv/+" + channel + "/" + strconv.FormatInt(channelTimestamp, 10))
 		if err != nil {
 			fmt.Printf("The HTTP request failed with error %s\n", err)
 		} else {
 			data, _ := ioutil.ReadAll(response.Body)
-			var chat []Chat
-			json.Unmarshal(data, &chat)
-			for _, line := range chat {
-				if line.Timestamp > BIGTIME {
-					result := time.Unix(line.Timestamp, 0).String() + ": " + line.Sender + ": " + line.Text
-					fmt.Println(result)
-					BIGTIME = line.Timestamp
-				}
+			var chats []Chat
+			json.Unmarshal(data, &chats)
+			for _, line := range chats {
+				result := time.Unix(line.Timestamp, 0).String() + ": " + line.Sender + ": " + line.Text
+				fmt.Println(result)
+				channelTimestamp = line.Timestamp
 			}
 		}
 	}
 
+}
+
+func receiveMessages() {
+	go receivePrivateMessages()
+	go readChannelChat()
 }
 
 func main() {
@@ -235,7 +220,7 @@ func main() {
 	fmt.Scanln(&user)
 	nickName = user
 
-	go receivePrivateMessages(BIGTIME)
+	receiveMessages()
 
 	for !loop {
 

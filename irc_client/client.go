@@ -15,7 +15,7 @@ import (
 
 var channel string
 var nickname string
-var domain string = "http://100.1.219.194:7777/"
+var domain string = "http://54.172.120.142:7777/"
 
 var privateTimestamp int64
 var channelTimestamp int64

@@ -84,14 +84,6 @@ func joinChannel(channelName string) {
 		fmt.Println("Welcome to " + channelName + ", " + nickname)
 		fmt.Println("Current Operators: ", chat.Operators)
 		fmt.Println("Current Users Connected: ", chat.Connected)
-		for {
-			scanner := bufio.NewScanner(os.Stdin)
-			if scanner.Scan() {
-				line := scanner.Text()
-				checkCommands(line)
-
-			}
-		}
 	}
 }
 

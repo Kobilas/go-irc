@@ -80,8 +80,11 @@ func joinChannel(channelName string, name string) {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
 	} else {
 		data, _ := ioutil.ReadAll(response.Body)
-		fmt.Println(string(data))
+		var chat Channel
+		json.Unmarshal(data, &chat)
 		fmt.Println("Welcome to " + channelName + ", " + name)
+		fmt.Println("Current Operators: ", chat.Operators)
+		fmt.Println("Current Users Connected: ", chat.Connected)
 
 		BIGTIME = 0
 
@@ -94,6 +97,7 @@ func joinChannel(channelName string, name string) {
 
 			switch choice {
 			case true:
+				time.Sleep(time.Second * 2)
 				readChannelChat(BIGTIME, channelName)
 			case false:
 				time.Sleep(time.Nanosecond * 5)
@@ -134,12 +138,9 @@ func sendChannelChat(body string, channelName string) {
 		Text:      body,
 	}
 	jsonValue, _ := json.Marshal(jsonData)
-	response, err := http.Post("http://100.1.219.194:7777/chat/send", "application/json", bytes.NewBuffer(jsonValue))
+	_, err := http.Post("http://100.1.219.194:7777/chat/send", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
-	} else {
-		data, _ := ioutil.ReadAll(response.Body)
-		fmt.Println(string(data))
 	}
 }
 

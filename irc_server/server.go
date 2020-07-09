@@ -248,7 +248,7 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint: /join")
 }
 
-func sendChannelChat(w http.ResponseWriter, r *http.Request) {
+func sendChat(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error: sendChannelChat, reading from request body: %s\n", err)
@@ -256,9 +256,13 @@ func sendChannelChat(w http.ResponseWriter, r *http.Request) {
 	var chat Chat
 	json.Unmarshal(reqBody, &chat)
 	if string(chat.Receiver[0]) == "#" {
-		ChatChannels[chat.Receiver[1:]].Chats = append(ChatChannels[chat.Receiver[1:]].Chats, chat)
+		ChatChannels[chat.Receiver[1:]].Chats = append(
+			ChatChannels[chat.Receiver[1:]].Chats, chat)
 	} else if string(chat.Receiver[0]) == "@" {
-
+		// PM[FROM][TO] = append(PM[FROM][TO], chat)
+		// TODO: may be more efficient to copy over array rather than accessing map this many times
+		PrivateMessages[chat.Sender][chat.Receiver[1:]] = append(
+			PrivateMessages[chat.Sender][chat.Receiver[1:]], chat)
 	}
 	// TODO: maybe automatically return all the chats that have occurred since then?
 	json.NewEncoder(w).Encode(chat)
@@ -276,17 +280,31 @@ func recvChannelChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error: recvChannelChat, parsing last recv'd time as int64: %s\n", err)
 	}
 	var chats []Chat
-	if string(key[0]) == "#" {
-		for _, val := range ChatChannels[key].Chats {
-			if val.Timestamp > last {
-				chats = append(chats, val)
-			}
+	for _, val := range ChatChannels[key].Chats {
+		if val.Timestamp > last {
+			chats = append(chats, val)
 		}
-	} else if string(key[0]) == "@" {
-
 	}
 	json.NewEncoder(w).Encode(chats)
 	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
+}
+
+func recvPrivateChat(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	from := vars["from"]
+	to := vars["to"]
+	last, err := strconv.ParseInt(vars["lastrecv"], 10, 64)
+	if err != nil {
+		log.Printf("error: recvPrivateChat, parsing last recv'd time as int64: %s\n", err)
+	}
+	var chats []Chat
+	for _, val := range PrivateMessages[from][to] {
+		if val.Timestamp > last {
+			chats = append(chats, val)
+		}
+	}
+	json.NewEncoder(w).Encode(chats)
+	fmt.Println("Endpoint: /chat/recv/{from}/{to}/{lastrecv}")
 }
 
 // handles different requests using Gorilla mux router
@@ -312,10 +330,11 @@ func handleRequests() {
 	router.HandleFunc("/user/{identifier}", readUser)
 	router.HandleFunc("/join", joinChannel).Methods("POST")
 	// identifier is the channel.toString()
-	router.HandleFunc("/chat/send", sendChannelChat).Methods("POST")
+	router.HandleFunc("/chat/send", sendChat).Methods("POST")
 	// identifier is the channel.toString()
 	// lastrecv is the unix timestamp of the lastrecv'd message
 	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChannelChat)
+	router.HandleFunc("/chat/recv/{from}/{to}/{lastrecv}", recvPrivateChat)
 	log.Fatalln(http.ListenAndServe(":7777", router))
 }
 

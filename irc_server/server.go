@@ -164,7 +164,7 @@ func readUser(w http.ResponseWriter, r *http.Request) {
 func joinChannel(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("error joinChannel, reading from request body: %s\n", err)
+		log.Printf("error: joinChannel, reading from request body: %s\n", err)
 	}
 	// get JSON data
 	dat := make(map[string]string)
@@ -204,18 +204,66 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint: /join")
 }
 
+func sendChannelChat(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["identifier"]
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("error: sendChannelChat, reading from request body: %s\n", err)
+	}
+	var chat Chat
+	json.Unmarshal(reqBody, &chat)
+	ChatChannels[key].Chats = append(ChatChannels[key].Chats, chat)
+	// TODO: maybe automatically return all the chats that have occurred since then?
+	json.NewEncoder(w).Encode(chat)
+	fmt.Println("Endpoint: /chat/send/{identifier}")
+}
+
+// programmer will send the timestamp of the lastrecv'd message
+// this function will return an array of chats corresponding with all the chats
+// that have occurred in that channel SINCE that timestamp
+func recvChannelChat(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["identifier"]
+	last, err := strconv.ParseInt(vars["lastrecv"], 10, 64)
+	if err != nil {
+		log.Printf("error: recvChannelChat, parsing last recv'd time as int64: %s\n", err)
+	}
+	var chats []Chat
+	for _, val := range ChatChannels[key].Chats {
+		if val.Timestamp.Unix() > last {
+			chats = append(chats, val)
+		}
+	}
+	json.NewEncoder(w).Encode(chats)
+	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
+}
+
 // handles different requests using Gorilla mux router
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homePage)
+
+	// the two routes below are mainly for debugging purposes, as they are
+	// too inefficient to be used as the main recving methods
+	router.HandleFunc("/chats", readAllChats)
+	// identifier is the channel.toString()
+	router.HandleFunc("/chat/{identifier}", readChat)
+
 	router.HandleFunc("/channel", createChatChannel).Methods("POST")
 	router.HandleFunc("/channels", readAllChannels)
+	// identifier is the channel.toString()
 	router.HandleFunc("/channel/{identifier}", readChannel)
 	router.HandleFunc("/user", createUser).Methods("POST")
 	router.HandleFunc("/users", readAllUsers)
+	// user is the user.toString()
 	router.HandleFunc("/user/{identifier}", readUser)
 	router.HandleFunc("/join", joinChannel).Methods("POST")
-	router.HandleFunc("/chat/send", sendChannelChat).Methods("POST")
+	// identifier is the channel.toString()
+	router.HandleFunc("/chat/send/{identifier}", sendChannelChat).Methods("POST")
+	// identifier is the channel.toString()
+	// lastrecv is the unix timestamp of the lastrecv'd message
+	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChannelChat)
 	log.Fatalln(http.ListenAndServe(":7777", router))
 }
 

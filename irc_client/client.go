@@ -77,7 +77,7 @@ func createChannel(channelName string, names ...string) string {
 	return string(data)
 }
 
-func joinChannel(channelName string) {
+func joinChannel(channelName string) error{
 	channel = channelName
 	jsonData := map[string]string{"user": nickname, "channel": channelName}
 	jsonValue, _ := json.Marshal(jsonData)
@@ -92,6 +92,7 @@ func joinChannel(channelName string) {
 		fmt.Println("Current Operators: ", chat.Operators)
 		fmt.Println("Current Users Connected: ", chat.Connected)
 	}
+	return err
 }
 
 func sendPrivateMessage(personName string, body ...string) string {
@@ -198,7 +199,7 @@ func readUser(name string) bool {
 	}
 }
 
-func createUser(name string) {
+func createUser(name string) error{
 
 	jsonData := User{
 		Nickname:   name,
@@ -211,9 +212,9 @@ func createUser(name string) {
 	if err != nil {
 		fmt.Printf("error: createUser, the HTTP request failed with error %s\n", err)
 	} else {
-		fmt.Println("Logged in as ", jsonData.Nickname)
+		fmt.Println("Logged in as:", jsonData.Nickname)
 	}
-
+	return err
 }
 
 func receiveMessages() {

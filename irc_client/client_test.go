@@ -11,7 +11,7 @@ import (
 
 func init(){
 	nickname = "tester"
-//	createUser("tester")
+	createUser("tester")
 }
 
 //Test Case 1:
@@ -95,10 +95,28 @@ func TestInvalidPrivateMessage(t *testing.T){
 
 //Test Case 6:
 //Create a user that already exists
-
-/*func TestCreateUser(t *testing.T){
+func TestCreateUser(t *testing.T){
 	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "")
 	}))
-	createUser("Jass")
-}*/
+	defer ts.Close()
+
+	ans := createUser("Jass")
+	if ans != nil{
+		t.Errorf("createUser('Jass') = %s; Should be: 'Logged in as: Jass", ans)
+	}
+}
+
+//Test Case 7: 
+//Join channel
+func TestJoinChannel(t *testing.T){
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+	}))
+	defer ts.Close()
+
+	ans := joinChannel("General")
+	if ans != nil{
+		t.Errorf("joinChannel('General') = %s", ans)		
+	}
+}

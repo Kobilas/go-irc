@@ -97,6 +97,10 @@ func joinChannel(channelName string, name string) {
 }
 
 func sendPrivateMessage(personName string, body ...string) string {
+	if !readUser(personName) {
+		fmt.Println("Person does not exist.")
+		return "Person does not exist."
+	}
 	var result string
 	for _, val := range body {
 		result += val + " "
@@ -174,6 +178,46 @@ func readChannelChat() {
 
 }
 
+func readUser(name string) bool {
+	jsonData := User{
+		Nickname:   name,
+		ID:         0,
+		Connection: "",
+	}
+	jsonValue, _ := json.Marshal(jsonData)
+	response, err := http.Post("http://100.1.219.194:7777/user/"+name, "application/json", bytes.NewBuffer(jsonValue))
+
+	data, _ := ioutil.ReadAll(response.Body)
+	var user User
+	json.Unmarshal(data, &user)
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+		return false
+	} else if user.Nickname != name {
+		return false
+	} else {
+		return true
+	}
+}
+
+func createUser(name string) {
+
+	jsonData := User{
+		Nickname:   name,
+		ID:         0,
+		Connection: "",
+	}
+	jsonValue, _ := json.Marshal(jsonData)
+	_, err := http.Post("http://100.1.219.194:7777/user", "application/json", bytes.NewBuffer(jsonValue))
+
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+	} else {
+		fmt.Println("Logged in as ", jsonData.Nickname)
+	}
+
+}
+
 func receiveMessages() {
 	go receivePrivateMessages()
 	go readChannelChat()
@@ -233,9 +277,17 @@ func main() {
 	}
 
 	var user string
-	fmt.Println("What username are you using? No spaces")
+	fmt.Println("What username would you like to use? No spaces")
 	fmt.Scanln(&user)
-	nickname = user
+  
+	if readUser(user) {
+		fmt.Println("Username exists. Logging in.")
+		nickname = user
+	} else {
+		fmt.Println("Username does not exist. Creating.")
+		createUser(user)
+		nickname = user
+	}
 
 	receiveMessages()
 

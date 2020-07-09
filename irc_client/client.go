@@ -95,7 +95,6 @@ func joinChannel(channelName string, name string) {
 			switch choice {
 			case true:
 				readChannelChat(BIGTIME, channelName)
-				fmt.Println(BIGTIME)
 			case false:
 				time.Sleep(time.Nanosecond * 5)
 				go func() {

@@ -1,7 +1,10 @@
 package main
 
 import (
-	"net/http/testing"
+	"net/http"
+//	"net/http/testing"
+	"io/ioutil"
+	"log"
 	"testing"
 	"fmt"
 )
@@ -10,14 +13,20 @@ import (
 //Show all channels within the client file
 func TestShowAllChannels(t *testing.T){
 	// echoHandler, passes back form parameter p
-    echoHandler := func( w http.ResponseWriter, r *http.Request) {
+    /*echoHandler := func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, r.FormValue("p"))
-	}
+	}*/
 	
-	ts := httptest.NewServer(http.HandlerFunc)
+/*	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello, client")
+	}))*/
+
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+    }))
 
     // create test server with handler
-    ts := httptest.NewServer(http.HandlerFunc(echoHandler))
+    //ts := httptest.NewServer(http.HandlerFunc(echoHandler))
 	defer ts.Close()
 	
 	ans := showAllChannels()
@@ -39,18 +48,12 @@ func TestSendChannelChat(t *testing.T){
 }
 
 //Test Case 4:
-//Read the channel chat
-func TestReadChannelChat(t *testing.T){
-
-}
-
-//Test Case 5:
 //Send a private message
 
-//Test Case 6: 
+//Test Case 5: 
 //Join an invalid channel
 
-//Test Case 7:
+//Test Case 6:
 //Create a channel that already exists
 
 */

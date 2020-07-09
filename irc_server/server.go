@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -22,17 +23,31 @@ type User struct {
 type Channel struct {
 	ChannelName string   `json:"channelname"`
 	ID          int      `json:"id"`
-	Operators   []string `json:"ops"`
+	Operators   []string `json:"operators"`
 	Connected   []string `json:"connected"`
 }
 
-// Channels map of Channel, where key is channelID (typically Channel.ChannelName
-// followed by identifier to keep it unique) and value is Channel
-var Channels = make(map[string]Channel)
+// Chat struct that contains the text, timestamp, and other information about chat
+type Chat struct {
+	Timestamp time.Time `json:"timestamp"`
+	Poster    string    `json:"poster"`
+	Text      string    `json:"text"`
+}
 
-// Users map of User, where key is userID (typically User.Nickname followed by
-// identifier to keep it unique) and value is User
+// ChatChannel struct, wrapping a single Channel with many Chats together
+type ChatChannel struct {
+	Chan  Channel
+	Chats []Chat
+}
+
+// Users map of User, where key is userID (typically User.Nickname, unless dupe
+// in which case it is User.Nickname + User.ID) and value is User
 var Users = make(map[string]User)
+
+// ChatChannels map of ChatChannel, where key is Channel identifier (typically
+// Channel.ChannelName, unless duplicate, in which case it is Channel.ChannelName
+// + Channel.ID) and value is a ChatChannel
+var ChatChannels = make(map[string]*ChatChannel)
 
 func (u User) toString() string {
 	if u.ID == 0 {
@@ -53,38 +68,53 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint: /")
 }
 
-func createChannel(w http.ResponseWriter, r *http.Request) {
+func createChatChannel(w http.ResponseWriter, r *http.Request) {
+	var name string
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("error: createChannel, reading from request body: %s\n", err)
+		log.Printf("error: createChatChannel, reading from request body: %s\n", err)
 	}
 	var channel Channel
 	json.Unmarshal(reqBody, &channel)
 	// check createUser for explanation
-	if _, ok := Channels[channel.ChannelName]; !ok {
+	name = channel.ChannelName
+	if _, ok := ChatChannels[name]; !ok {
 		channel.ID = 0
-		Channels[channel.ChannelName] = channel
+		ChatChannels[channel.ChannelName] = &ChatChannel{
+			Chan:  channel,
+			Chats: []Chat{},
+		}
 	} else {
 		var i int = 0
-		for ok := true; ok; _, ok = Channels[channel.ChannelName+strconv.Itoa(i)] {
+		for ok := true; ok; _, ok = ChatChannels[name+strconv.Itoa(i)] {
 			i++
 		}
 		channel.ID = i
-		Channels[channel.ChannelName+strconv.Itoa(i)] = channel
+		name += strconv.Itoa(i)
+		ChatChannels[name] = &ChatChannel{
+			Chan:  channel,
+			Chats: []Chat{},
+		}
 	}
-	json.NewEncoder(w).Encode(channel)
+	json.NewEncoder(w).Encode(ChatChannels[name].Chan)
 	fmt.Println("Endpoint: /channel")
 }
 
 func readAllChannels(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(Channels)
+	channels := make([]Channel, len(ChatChannels))
+	var i int
+	for _, v := range ChatChannels {
+		channels[i] = v.Chan
+		i++
+	}
+	json.NewEncoder(w).Encode(channels)
 	fmt.Println("Endpoint: /channels")
 }
 
 func readChannel(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["identifier"]
-	json.NewEncoder(w).Encode(Channels[key])
+	json.NewEncoder(w).Encode(ChatChannels[key].Chan)
 	fmt.Println("Endpoint: /channel/{identifier}")
 }
 
@@ -140,12 +170,12 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 	dat := make(map[string]string)
 	json.Unmarshal(reqBody, &dat)
 	user := Users[dat["user"]]
-	newChannel := Channels[dat["channel"]]
+	newChannel := ChatChannels[dat["channel"]].Chan
 	// if the user was connected to a channel before this one
 	if user.Connection != "" {
 		// remove user from list of users connected to old channel,
 		// and assign copy back to db
-		oldChannel := Channels[user.Connection]
+		oldChannel := ChatChannels[user.Connection].Chan
 		// TODO: may be beneficial to move this into its own function
 		for i, val := range oldChannel.Connected {
 			if val == user.toString() {
@@ -157,7 +187,7 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		Channels[user.Connection] = oldChannel
+		ChatChannels[user.Connection].Chan = oldChannel
 	}
 	// change user's channel connection, and assign the copy back to db
 	user.Connection = newChannel.toString()
@@ -165,8 +195,8 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 	// add user to list of users connected to new channel,
 	// and assign copy back to db
 	newChannel.Connected = append(newChannel.Connected, user.toString())
-	Channels[dat["channel"]] = newChannel
-	json.NewEncoder(w).Encode(Channels[dat["channel"]])
+	ChatChannels[dat["channel"]].Chan = newChannel
+	json.NewEncoder(w).Encode(ChatChannels[dat["channel"]].Chan)
 	fmt.Println("Endpoint: /join")
 }
 
@@ -174,7 +204,7 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homePage)
-	router.HandleFunc("/channel", createChannel).Methods("POST")
+	router.HandleFunc("/channel", createChatChannel).Methods("POST")
 	router.HandleFunc("/channels", readAllChannels)
 	router.HandleFunc("/channel/{identifier}", readChannel)
 	router.HandleFunc("/user", createUser).Methods("POST")
@@ -185,24 +215,29 @@ func handleRequests() {
 }
 
 func main() {
-	Channels = map[string]Channel{
-		"General": Channel{
-			ChannelName: "General",
-			ID:          0,
-			Operators: []string{
-				"Kobo",
-				"DarDarBinks",
-				"Jass",
+	ChatChannels = map[string]*ChatChannel{
+		"General": &ChatChannel{
+			Channel{
+				ChannelName: "General",
+				ID:          0,
+				Operators: []string{
+					"Kobo",
+					"DarDarBinks",
+					"Jass",
+				},
 			},
-			Connected: []string{},
+			[]Chat{},
 		},
-		"SumDumShiet": Channel{
-			ChannelName: "SumDumShiet",
-			ID:          0,
-			Operators: []string{
-				"Bobo",
+		"SumDumShiet": &ChatChannel{
+			Channel{
+				ChannelName: "SumDumShiet",
+				ID:          0,
+				Operators: []string{
+					"Bobo",
+				},
+				Connected: []string{},
 			},
-			Connected: []string{},
+			[]Chat{},
 		},
 	}
 	Users = map[string]User{

@@ -204,7 +204,6 @@ func readChannelChat() {
 }
 
 func readUser(name string) bool {
-
 	jsonData := User{
 		Nickname:   name,
 		ID:         0,

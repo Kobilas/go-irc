@@ -90,13 +90,12 @@ func joinChannel(channelName string, name string) {
 
 		BIGTIME = 0
 
-		var messages = make(chan string, 10)
 		var choice bool = true
 
 		go readChannelChat(BIGTIME, channelName)
 
 		var i int
-		for choice{
+		for choice {
 			i++
 
 			/*choice = !choice
@@ -107,32 +106,30 @@ func joinChannel(channelName string, name string) {
 			case false:
 				time.Sleep(time.Nanosecond * 5)*/
 
-				go func() {
-					scanner := bufio.NewScanner(os.Stdin)
-					if scanner.Scan() {
-						fmt.Println(i)
-						line := scanner.Text()
-						if line == "/exit" {
-							choice = false
-						}
-						sendChannelChat(line, channelName)
+			go func() {
+				scanner := bufio.NewScanner(os.Stdin)
+				if scanner.Scan() {
+					fmt.Println(i)
+					line := scanner.Text()
+					if line == "/exit" {
+						choice = false
 					}
-				}()
-			}
-		}
-
-		/*for {
-			scanner := bufio.NewScanner(os.Stdin)
-			if scanner.Scan() {
-				line := scanner.Text()
-				if line == "/exit" {
-					break
+					sendChannelChat(line, channelName)
 				}
-				sendChannelChat(line, channelName)
-			}
-		}*/
-		close(messages)
+			}()
+		}
 	}
+
+	/*for {
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			line := scanner.Text()
+			if line == "/exit" {
+				break
+			}
+			sendChannelChat(line, channelName)
+		}
+	}*/
 }
 
 func sendPrivateMessage(personName string, body ...string) string {
@@ -153,11 +150,11 @@ func sendPrivateMessage(personName string, body ...string) string {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
 		return "FAIL"
 	} else {
-		return jsonData
+		return jsonData.Text
 	}
 }
 
-func receivePrivateMessages(timestamp int64) string {
+func receivePrivateMessages(timestamp int64) {
 	url := "http://100.1.219.194:7777/chat/recv/-" + nickName + "/" + strconv.FormatInt(timestamp, 10)
 	for {
 		response, err := http.Get(url)
@@ -171,13 +168,11 @@ func receivePrivateMessages(timestamp int64) string {
 				if line.Timestamp > BIGTIME {
 					result := "Private Message from " + line.Sender + ": " + line.Text
 					fmt.Println(result)
-					return result
 					BIGTIME = line.Timestamp
 				}
 			}
 		}
 	}
-	return "FAIL"
 }
 
 func sendChannelChat(body string, channelName string) string {
@@ -195,13 +190,13 @@ func sendChannelChat(body string, channelName string) string {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
 		return "FAIL"
 	} else {
-		return jsonData
+		return jsonData.Text
 	}
 }
 
-func readChannelChat(timestamp int64, channelName string) string{
+func readChannelChat(timestamp int64, channelName string) {
 	url := "http://100.1.219.194:7777/chat/recv/+" + channelName + "/" + strconv.FormatInt(timestamp, 10)
-	
+
 	for {
 		response, err := http.Get(url)
 
@@ -212,15 +207,14 @@ func readChannelChat(timestamp int64, channelName string) string{
 			var chat []Chat
 			json.Unmarshal(data, &chat)
 			for _, line := range chat {
-				if(line.Timestamp > BIGTIME)
-				result := time.Unix(line.Timestamp, 0).String() + ": " + line.Sender + ": " + line.Text
-				fmt.Println(result)
-				return result
-				BIGTIME = line.Timestamp
+				if line.Timestamp > BIGTIME {
+					result := time.Unix(line.Timestamp, 0).String() + ": " + line.Sender + ": " + line.Text
+					fmt.Println(result)
+					BIGTIME = line.Timestamp
+				}
 			}
 		}
 	}
-	return "FAIL"
 
 }
 

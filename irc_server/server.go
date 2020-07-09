@@ -29,7 +29,8 @@ type Channel struct {
 // Chat struct that contains the text, timestamp, and other information about chat
 type Chat struct {
 	Timestamp int64  `json:"timestamp"`
-	Poster    string `json:"poster"`
+	Sender    string `json:"sender"`
+	Receiver  string `json:"receiver"`
 	Text      string `json:"text"`
 }
 
@@ -215,18 +216,20 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendChannelChat(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["identifier"]
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error: sendChannelChat, reading from request body: %s\n", err)
 	}
 	var chat Chat
 	json.Unmarshal(reqBody, &chat)
-	ChatChannels[key].Chats = append(ChatChannels[key].Chats, chat)
+	if chat.Receiver[0] == "#" {
+		ChatChannels[key].Chats = append(ChatChannels[key].Chats, chat)
+	} else if chat.Receiver[0] == "@" {
+
+	}
 	// TODO: maybe automatically return all the chats that have occurred since then?
 	json.NewEncoder(w).Encode(chat)
-	fmt.Println("Endpoint: /chat/send/{identifier}")
+	fmt.Println("Endpoint: /chat/send/")
 }
 
 // programmer will send the timestamp of the lastrecv'd message
@@ -270,7 +273,7 @@ func handleRequests() {
 	router.HandleFunc("/user/{identifier}", readUser)
 	router.HandleFunc("/join", joinChannel).Methods("POST")
 	// identifier is the channel.toString()
-	router.HandleFunc("/chat/send/{identifier}", sendChannelChat).Methods("POST")
+	router.HandleFunc("/chat/send", sendChannelChat).Methods("POST")
 	// identifier is the channel.toString()
 	// lastrecv is the unix timestamp of the lastrecv'd message
 	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChannelChat)

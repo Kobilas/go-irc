@@ -2,9 +2,9 @@ package main
 
 import (
 	"net/http"
-//	"net/http/testing"
-	"io/ioutil"
-	"log"
+	"net/http/httptest"
+	//"io/ioutil"
+	//"log"
 	"testing"
 	"fmt"
 )
@@ -12,21 +12,10 @@ import (
 //Test Case 1:
 //Show all channels within the client file
 func TestShowAllChannels(t *testing.T){
-	// echoHandler, passes back form parameter p
-    /*echoHandler := func( w http.ResponseWriter, r *http.Request) {
-        fmt.Fprint(w, r.FormValue("p"))
-	}*/
-	
-/*	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello, client")
-	}))*/
 
 	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "")
     }))
-
-    // create test server with handler
-    //ts := httptest.NewServer(http.HandlerFunc(echoHandler))
 	defer ts.Close()
 	
 	ans := showAllChannels()
@@ -38,9 +27,17 @@ func TestShowAllChannels(t *testing.T){
 //Test Case 2:
 //Create a new channel
 func TestCreateChannel(t *testing.T){
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+    }))
+	defer ts.Close()
 
+	ans := createChannel("TestChannel", "Jass")
+	if ans != "FAIL"{
+		t.Errorf("createChannel('TestChannel', 'Jass') = %s; Should be a new channel", ans)
+	}
 }
-/*
+
 //Test Case 3:
 //Send a chat to the channel
 func TestSendChannelChat(t *testing.T){
@@ -56,4 +53,3 @@ func TestSendChannelChat(t *testing.T){
 //Test Case 6:
 //Create a channel that already exists
 
-*/

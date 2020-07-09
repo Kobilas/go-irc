@@ -21,8 +21,9 @@ var privateTimestamp int64
 var channelTimestamp int64
 
 type User struct {
-	Nickname string `json:"nickname"`
-	ID       int    `json:"id"`
+	Nickname   string `json:"nickname"`
+	ID         int    `json:"id"`
+	Connection string `json:"connection"`
 }
 
 // Channel struct that contains information of various channels
@@ -228,7 +229,6 @@ func main() {
 		if scanner.Scan() {
 			line := scanner.Text()
 			resp = strings.Split(line, " ")
-			fmt.Println(resp)
 		}
 		switch resp[0] {
 		case "/help":

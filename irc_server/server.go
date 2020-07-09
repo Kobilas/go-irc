@@ -171,8 +171,12 @@ func joinChannel(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(reqBody, &dat)
 	user := Users[dat["user"]]
 	newChannel := ChatChannels[dat["channel"]].Chan
-	// if the user was connected to a channel before this one
-	if user.Connection != "" {
+	if user.Connection == dat["channel"] {
+		// check if user is trying to join the same channel as they in already
+		json.NewEncoder(w).Encode(ChatChannels[dat["channel"]].Chan)
+		return
+	} else if user.Connection != "" {
+		// if the user was connected to a channel before this one
 		// remove user from list of users connected to old channel,
 		// and assign copy back to db
 		oldChannel := ChatChannels[user.Connection].Chan
@@ -211,6 +215,7 @@ func handleRequests() {
 	router.HandleFunc("/users", readAllUsers)
 	router.HandleFunc("/user/{identifier}", readUser)
 	router.HandleFunc("/join", joinChannel).Methods("POST")
+	router.HandleFunc("/chat/send", sendChannelChat).Methods("POST")
 	log.Fatalln(http.ListenAndServe(":7777", router))
 }
 

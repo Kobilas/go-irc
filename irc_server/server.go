@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -29,9 +28,9 @@ type Channel struct {
 
 // Chat struct that contains the text, timestamp, and other information about chat
 type Chat struct {
-	Timestamp time.Time `json:"timestamp"`
-	Poster    string    `json:"poster"`
-	Text      string    `json:"text"`
+	Timestamp int64  `json:"timestamp"`
+	Poster    string `json:"poster"`
+	Text      string `json:"text"`
 }
 
 // ChatChannel struct, wrapping a single Channel with many Chats together
@@ -66,6 +65,17 @@ func (c Channel) toString() string {
 func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to our IRC!")
 	fmt.Println("Endpoint: /")
+}
+
+func readAllChatChannels(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(ChatChannels)
+	fmt.Println("Endpoint: /chatchannels")
+}
+
+func readChatChannel(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["identifier"]
+	json.NewEncoder(w).Encode(ChatChannels[key])
 }
 
 func createChatChannel(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +241,7 @@ func recvChannelChat(w http.ResponseWriter, r *http.Request) {
 	}
 	var chats []Chat
 	for _, val := range ChatChannels[key].Chats {
-		if val.Timestamp.Unix() > last {
+		if val.Timestamp > last {
 			chats = append(chats, val)
 		}
 	}
@@ -246,9 +256,9 @@ func handleRequests() {
 
 	// the two routes below are mainly for debugging purposes, as they are
 	// too inefficient to be used as the main recving methods
-	router.HandleFunc("/chats", readAllChats)
+	router.HandleFunc("/chatchannels", readAllChatChannels)
 	// identifier is the channel.toString()
-	router.HandleFunc("/chat/{identifier}", readChat)
+	router.HandleFunc("/chatchannel/{identifier}", readChatChannel)
 
 	router.HandleFunc("/channel", createChatChannel).Methods("POST")
 	router.HandleFunc("/channels", readAllChannels)

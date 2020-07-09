@@ -46,8 +46,20 @@ var Users = make(map[string]User)
 
 // ChatChannels map of ChatChannel, where key is Channel identifier (typically
 // Channel.ChannelName, unless duplicate, in which case it is Channel.ChannelName
-// + Channel.ID) and value is a ChatChannel
+// + Channel.ID) and value is a *ChatChannel
 var ChatChannels = make(map[string]*ChatChannel)
+
+// PrivateMessages map with key as string to value of map with key as string
+// to value of Chat slice
+// This will creates a matrix of Chats between users as such:
+/*
+							FROM USER
+			_______| Darius | Jasmine | Matt |
+			Darius |________|_________|______|
+TO USER		Jasmine|________|_________|______|
+			Matt   |________|_________|______|
+*/
+var PrivateMessages = make(map[string]map[string][]Chat)
 
 func (u User) toString() string {
 	if u.ID == 0 {
@@ -79,6 +91,19 @@ func readChatChannel(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ChatChannels[key])
 }
 
+func readAllPrivateMessages(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(PrivateMessages)
+	fmt.Println("Endpoint: /privatemessages")
+}
+
+func readPrivateMessages(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	from := vars["from"]
+	to := vars["to"]
+	json.NewEncoder(w).Encode(PrivateMessages[from][to])
+	fmt.Println("Endpoint: /privatemessages/{from}/{to}")
+}
+
 func createChatChannel(w http.ResponseWriter, r *http.Request) {
 	var name string
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -91,7 +116,7 @@ func createChatChannel(w http.ResponseWriter, r *http.Request) {
 	name = channel.ChannelName
 	if _, ok := ChatChannels[name]; !ok {
 		channel.ID = 0
-		ChatChannels[channel.ChannelName] = &ChatChannel{
+		ChatChannels[name] = &ChatChannel{
 			Chan:  channel,
 			Chats: []Chat{},
 		}
@@ -130,18 +155,20 @@ func readChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
+	var name string
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error: createUser, reading from request body: %s\n", err)
 	}
 	var user User
 	json.Unmarshal(reqBody, &user)
-	if _, ok := Users[user.Nickname]; !ok {
+	name = user.Nickname
+	if _, ok := Users[name]; !ok {
 		/* check if the user exists in the map
 		if it does not exist, then add them with the username they requested and
 		ID 0 */
 		user.ID = 0
-		Users[user.Nickname] = user
+		Users[name] = user
 	} else {
 		/* otherwise
 		we check if their username with ID 1 exists, then 2, then 3, etc
@@ -150,13 +177,19 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		check for matt2, matt2 is not taken, so we add a User with username matt
 		and ID 2 */
 		var i int = 0
-		for ok := true; ok; _, ok = Users[user.Nickname+strconv.Itoa(i)] {
+		for ok := true; ok; _, ok = Users[name+strconv.Itoa(i)] {
 			i++
 		}
 		user.ID = i
-		Users[user.Nickname+strconv.Itoa(i)] = user
+		name += strconv.Itoa(i)
+		Users[name] = user
 	}
-	json.NewEncoder(w).Encode(user)
+	PrivateMessages[name] = make(map[string][]Chat)
+	for k := range PrivateMessages {
+		PrivateMessages[name][k] = []Chat{}
+		PrivateMessages[k][name] = []Chat{}
+	}
+	json.NewEncoder(w).Encode(Users[name])
 	fmt.Println("Endpoint: /user")
 }
 
@@ -222,9 +255,9 @@ func sendChannelChat(w http.ResponseWriter, r *http.Request) {
 	}
 	var chat Chat
 	json.Unmarshal(reqBody, &chat)
-	if chat.Receiver[0] == "#" {
-		ChatChannels[key].Chats = append(ChatChannels[key].Chats, chat)
-	} else if chat.Receiver[0] == "@" {
+	if string(chat.Receiver[0]) == "#" {
+		ChatChannels[chat.Receiver[1:]].Chats = append(ChatChannels[chat.Receiver[1:]].Chats, chat)
+	} else if string(chat.Receiver[0]) == "@" {
 
 	}
 	// TODO: maybe automatically return all the chats that have occurred since then?
@@ -243,10 +276,14 @@ func recvChannelChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error: recvChannelChat, parsing last recv'd time as int64: %s\n", err)
 	}
 	var chats []Chat
-	for _, val := range ChatChannels[key].Chats {
-		if val.Timestamp > last {
-			chats = append(chats, val)
+	if string(key[0]) == "#" {
+		for _, val := range ChatChannels[key].Chats {
+			if val.Timestamp > last {
+				chats = append(chats, val)
+			}
 		}
+	} else if string(key[0]) == "@" {
+
 	}
 	json.NewEncoder(w).Encode(chats)
 	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
@@ -257,11 +294,13 @@ func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homePage)
 
-	// the two routes below are mainly for debugging purposes, as they are
+	// the four routes below are mainly for debugging purposes, as they are
 	// too inefficient to be used as the main recving methods
 	router.HandleFunc("/chatchannels", readAllChatChannels)
 	// identifier is the channel.toString()
 	router.HandleFunc("/chatchannel/{identifier}", readChatChannel)
+	router.HandleFunc("/privatemessages", readAllPrivateMessages)
+	router.HandleFunc("/privatemessage/{from}/{to}", readPrivateMessages)
 
 	router.HandleFunc("/channel", createChatChannel).Methods("POST")
 	router.HandleFunc("/channels", readAllChannels)
@@ -321,6 +360,23 @@ func main() {
 			Nickname:   "Jasmine",
 			ID:         0,
 			Connection: "",
+		},
+	}
+	PrivateMessages = map[string]map[string][]Chat{
+		"Matt": map[string][]Chat{
+			"Matt":    []Chat{},
+			"Darius":  []Chat{},
+			"Jasmine": []Chat{},
+		},
+		"Darius": map[string][]Chat{
+			"Matt":    []Chat{},
+			"Darius":  []Chat{},
+			"Jasmine": []Chat{},
+		},
+		"Jasmine": map[string][]Chat{
+			"Matt":    []Chat{},
+			"Darius":  []Chat{},
+			"Jasmine": []Chat{},
 		},
 	}
 	handleRequests()

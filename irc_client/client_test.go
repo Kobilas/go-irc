@@ -33,7 +33,7 @@ func TestCreateChannel(t *testing.T){
 	defer ts.Close()
 
 	ans := createChannel("TestChannel", "Jass")
-	if ans != "FAIL"{
+	if ans == "FAIL"{
 		t.Errorf("createChannel('TestChannel', 'Jass') = %s; Should be a new channel", ans)
 	}
 }

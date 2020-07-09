@@ -8,8 +8,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
+
+var channel string
+var nickName string
+var BIGTIME int64
 
 type User struct {
 	Nickname string `json:"nickname"`
@@ -22,6 +28,13 @@ type Channel struct {
 	ID          int      `json:"id"`
 	Operators   []string `json:"operators"`
 	Connected   []string `json:"connected"`
+}
+
+type Chat struct {
+	Timestamp int64  `json:"timestamp"`
+	Sender    string `json:"sender"`
+	Receiver  string `json:"receiver"`
+	Text      string `json:"text"`
 }
 
 //Done
@@ -45,8 +58,6 @@ func createChannel(channelName string, names ...string) {
 		Operators: names,
 		Connected: []string{},
 	}
-
-	fmt.Println(jsonData)
 	jsonValue, _ := json.Marshal(jsonData)
 	response, err := http.Post("http://100.1.219.194:7777/channel", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
@@ -57,7 +68,10 @@ func createChannel(channelName string, names ...string) {
 	}
 }
 
-func joinChannel(channelName string, name string) { //Done
+//Done
+func joinChannel(channelName string, name string) {
+	channel = channelName
+	nickName = name
 
 	jsonData := map[string]string{"user": name, "channel": channelName}
 	jsonValue, _ := json.Marshal(jsonData)
@@ -68,7 +82,86 @@ func joinChannel(channelName string, name string) { //Done
 		data, _ := ioutil.ReadAll(response.Body)
 		fmt.Println(string(data))
 		fmt.Println("Welcome to " + channelName + ", " + name)
+
+		BIGTIME = 0
+
+		var messages = make(chan string, 10)
+		var choice bool = true
+
+		for {
+
+			choice = !choice
+
+			switch choice {
+			case true:
+				readChannelChat(BIGTIME, channelName)
+				fmt.Println(BIGTIME)
+			case false:
+				time.Sleep(time.Nanosecond * 5)
+				go func() {
+					scanner := bufio.NewScanner(os.Stdin)
+					if scanner.Scan() {
+						line := scanner.Text()
+						if line == "/exit" {
+							os.Exit(1)
+						}
+						sendChannelChat(line, channelName)
+					}
+				}()
+			}
+		}
+
+		/*for {
+			scanner := bufio.NewScanner(os.Stdin)
+			if scanner.Scan() {
+				line := scanner.Text()
+				if line == "/exit" {
+					break
+				}
+				sendChannelChat(line, channelName)
+			}
+		}*/
+		close(messages)
 	}
+}
+
+func sendChannelChat(body string, channelName string) {
+
+	timespot := time.Now().Unix()
+	jsonData := Chat{
+		Timestamp: timespot,
+		Sender:    nickName,
+		Receiver:  "#" + channelName,
+		Text:      body,
+	}
+	jsonValue, _ := json.Marshal(jsonData)
+	response, err := http.Post("http://100.1.219.194:7777/chat/send", "application/json", bytes.NewBuffer(jsonValue))
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+	} else {
+		data, _ := ioutil.ReadAll(response.Body)
+		fmt.Println(string(data))
+	}
+}
+
+func readChannelChat(timestamp int64, channelName string) {
+	url := "http://100.1.219.194:7777/chat/recv/" + channelName + "/" + strconv.FormatInt(timestamp, 10)
+	response, err := http.Get(url)
+
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+	} else {
+		data, _ := ioutil.ReadAll(response.Body)
+		var chat []Chat
+		json.Unmarshal(data, &chat)
+		for _, line := range chat {
+			result := time.Unix(line.Timestamp, 0).String() + ": " + line.Sender + ": " + line.Text
+			fmt.Println(result)
+			BIGTIME = line.Timestamp
+
+		}
+	}
+
 }
 
 func main() {

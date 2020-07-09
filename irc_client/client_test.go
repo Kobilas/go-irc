@@ -9,6 +9,11 @@ import (
 	"fmt"
 )
 
+func init(){
+	nickname = "tester"
+//	createUser("tester")
+}
+
 //Test Case 1:
 //Show all channels within the client file
 func TestShowAllChannels(t *testing.T){
@@ -67,7 +72,7 @@ func TestSendPrivateMessage(t *testing.T){
     }))
 	defer ts.Close()
 
-	ans := sendPrivateMessage("Darius", "Shhh...")
+	ans := sendPrivateMessage("Matt", "Shhh...")
 	if ans == "FAIL"{
 		t.Errorf("sendPrivateMessage() = %s; Should be 'Shhh...'", ans)
 	}else{
@@ -75,7 +80,25 @@ func TestSendPrivateMessage(t *testing.T){
 	}
 }
 //Test Case 5: 
-//Join an invalid channel
+//Send a private message to a non existing user
+func TestInvalidPrivateMessage(t *testing.T){
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+    }))
+	defer ts.Close()
 
+	ans := sendPrivateMessage("JazzyFizzle", "Shhh...")
+	if ans != "Person does not exist."{
+		t.Errorf("sendPrivateMessage() = %s; Should be: 'Person does not exist.'", ans)
+	} 
+}
 
+//Test Case 6:
+//Create a user that already exists
 
+/*func TestCreateUser(t *testing.T){
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+	}))
+	createUser("Jass")
+}*/

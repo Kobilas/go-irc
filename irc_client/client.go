@@ -50,7 +50,14 @@ func showAllChannels() string {
 		return "The HTTP request failed with error"
 	}
 	data, _ := ioutil.ReadAll(response.Body)
-	return string(data)
+	var channels []Channel
+	var result string
+	json.Unmarshal(data, &channels)
+	for _, line := range channels {
+		result += line.ChannelName + "\n"
+	}
+	fmt.Println("\nList of All Channels:")
+	return result
 }
 
 func createChannel(channelName string, names ...string) string {
@@ -85,7 +92,6 @@ func joinChannel(channelName string) {
 		fmt.Println("Current Operators: ", chat.Operators)
 		fmt.Println("Current Users Connected: ", chat.Connected)
 	}
-	fmt.Println("This is the joinChannel end")
 }
 
 func sendPrivateMessage(personName string, body ...string) string {
@@ -219,31 +225,26 @@ func checkCommands(line string) {
 	tok := strings.Split(line, " ")
 	switch tok[0] {
 	case "/help":
-		fmt.Println("This is the help")
 		fmt.Println("/create [ChannelName] [Name1] [Name2] [Name3...]	creates a channel, if one already exists then creates a 2nd one for it. Subsequent names are operators for the channel. Must have at least 1")
 		fmt.Println("/channels											shows all channels")
 		fmt.Println("/join [ChannelName] [UserName]						joins that respect channel under that username")
 		fmt.Println("/pm [Name] [Text]									sends private message to that user")
 		fmt.Println("/exit												exits the program")
 	case "/channels":
-		fmt.Println("This is the channels")
 		fmt.Println(showAllChannels())
 	case "/create":
-		fmt.Println("This is the create")
 		if len(tok) >= 3 {
 			createChannel(tok[1], tok[2:]...)
 		} else {
 			fmt.Println("error: checkCommands, failed /create call; check out /help for more info")
 		}
 	case "/join": //Done
-		fmt.Println("This is the join")
 		if len(tok) == 2 {
 			joinChannel(tok[1])
 		} else {
 			fmt.Println("error: checkCommands, failed /join call; check out /help for more info")
 		}
 	case "/pm":
-		fmt.Println("This is the pm")
 		if len(tok) >= 3 {
 			sendPrivateMessage(tok[1], tok[2:]...)
 		} else {
@@ -253,7 +254,6 @@ func checkCommands(line string) {
 		os.Exit(0)
 	default:
 		if channel != "" {
-			fmt.Println("This is the channel")
 			sendChannelChat(line, channel)
 		} else {
 			fmt.Println("error: checkCommands, please enter a channel or use a command")
@@ -289,7 +289,6 @@ func main() {
 	for {
 		scanner := bufio.NewScanner(os.Stdin)
 		if scanner.Scan() {
-			fmt.Println("CheckCommands for loop")
 			line := scanner.Text()
 			checkCommands(line)
 		}

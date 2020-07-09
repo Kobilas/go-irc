@@ -75,11 +75,10 @@ func createChannel(channelName string, names ...string) string {
 }
 
 //Done
-func joinChannel(channelName string, name string) {
+func joinChannel(channelName string) {
 	channel = channelName
-	nickName = name
 
-	jsonData := map[string]string{"user": name, "channel": channelName}
+	jsonData := map[string]string{"user": nickName, "channel": channelName}
 	jsonValue, _ := json.Marshal(jsonData)
 	response, err := http.Post("http://100.1.219.194:7777/join", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
@@ -88,7 +87,7 @@ func joinChannel(channelName string, name string) {
 		data, _ := ioutil.ReadAll(response.Body)
 		var chat Channel
 		json.Unmarshal(data, &chat)
-		fmt.Println("Welcome to " + channelName + ", " + name)
+		fmt.Println("Welcome to " + channelName + ", " + nickName)
 		fmt.Println("Current Operators: ", chat.Operators)
 		fmt.Println("Current Users Connected: ", chat.Connected)
 
@@ -285,7 +284,7 @@ func main() {
 		case "/help":
 			fmt.Println("/create [ChannelName] [Name1] [Name2] [Name3...] creates a channel, if one already exists then creates a 2nd one for it. Subsequent names are operators for the channel. Must have at least 1")
 			fmt.Println("/channels    shows all channels")
-			fmt.Println("/join [ChannelName] [UserName]  joins that respect channel under that username")
+			fmt.Println("/join [ChannelName] joins that respect channel under that username")
 			fmt.Println("/pm [Name] [Text]  Sends private message to that user")
 			fmt.Println("/exit  exits the program")
 		case "/channels": //Done
@@ -298,8 +297,8 @@ func main() {
 				fmt.Println("Error. Failed /create call. Check out /help for more info")
 			}
 		case "/join": //Done
-			if len(resp) == 3 {
-				joinChannel(resp[1], resp[2])
+			if len(resp) == 2 {
+				joinChannel(resp[1])
 			} else {
 				fmt.Println("Error. Failed /join call. Check out /help for more info")
 			}

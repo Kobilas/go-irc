@@ -243,7 +243,7 @@ func checkCommands(line string) {
 			fmt.Println("error: checkCommands, failed /create call; check out /help for more info")
 		}
 	case "/join": //Done
-		if len(tok) == 3 {
+		if len(tok) == 2 {
 			joinChannel(tok[1])
 		} else {
 			fmt.Println("error: checkCommands, failed /join call; check out /help for more info")

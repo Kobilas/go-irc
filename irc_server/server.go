@@ -272,7 +272,7 @@ func sendChat(w http.ResponseWriter, r *http.Request) {
 // programmer will send the timestamp of the lastrecv'd message
 // this function will return an array of chats corresponding with all the chats
 // that have occurred in that channel SINCE that timestamp
-func recvChannelChat(w http.ResponseWriter, r *http.Request) {
+func recvChat(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["identifier"]
 	last, err := strconv.ParseInt(vars["lastrecv"], 10, 64)
@@ -280,31 +280,23 @@ func recvChannelChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error: recvChannelChat, parsing last recv'd time as int64: %s\n", err)
 	}
 	var chats []Chat
-	for _, val := range ChatChannels[key].Chats {
-		if val.Timestamp > last {
-			chats = append(chats, val)
+	if string(key[0]) == "+" {
+		for _, val := range ChatChannels[key[1:]].Chats {
+			if val.Timestamp > last {
+				chats = append(chats, val)
+			}
+		}
+	} else if string(key[0]) == "-" {
+		for k := range PrivateMessages {
+			for _, val := range PrivateMessages[k][key[1:]] {
+				if val.Timestamp > last {
+					chats = append(chats, val)
+				}
+			}
 		}
 	}
 	json.NewEncoder(w).Encode(chats)
 	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
-}
-
-func recvPrivateChat(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	from := vars["from"]
-	to := vars["to"]
-	last, err := strconv.ParseInt(vars["lastrecv"], 10, 64)
-	if err != nil {
-		log.Printf("error: recvPrivateChat, parsing last recv'd time as int64: %s\n", err)
-	}
-	var chats []Chat
-	for _, val := range PrivateMessages[from][to] {
-		if val.Timestamp > last {
-			chats = append(chats, val)
-		}
-	}
-	json.NewEncoder(w).Encode(chats)
-	fmt.Println("Endpoint: /chat/recv/{from}/{to}/{lastrecv}")
 }
 
 // handles different requests using Gorilla mux router
@@ -333,8 +325,7 @@ func handleRequests() {
 	router.HandleFunc("/chat/send", sendChat).Methods("POST")
 	// identifier is the channel.toString()
 	// lastrecv is the unix timestamp of the lastrecv'd message
-	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChannelChat)
-	router.HandleFunc("/chat/recv/{from}/{to}/{lastrecv}", recvPrivateChat)
+	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChat)
 	log.Fatalln(http.ListenAndServe(":7777", router))
 }
 

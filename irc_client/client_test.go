@@ -61,10 +61,21 @@ func TestSendChannelChat(t *testing.T){
 
 //Test Case 4:
 //Send a private message
+func TestSendPrivateMessage(t *testing.T){
+	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "")
+    }))
+	defer ts.Close()
 
+	ans := sendPrivateMessage("Darius", "Shhh...")
+	if ans == "FAIL"{
+		t.Errorf("sendPrivateMessage() = %s; Should be 'Shhh...'", ans)
+	}else{
+		fmt.Printf("sendPrivateMessage() = %s", ans)
+	}
+}
 //Test Case 5: 
 //Join an invalid channel
 
-//Test Case 6:
-//Create a channel that already exists
+
 

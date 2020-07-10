@@ -519,9 +519,9 @@ func main() {
 			},
 			[]Chat{},
 		},
-		"SumDumShiet": &ChatChannel{
+		"Random": &ChatChannel{
 			Channel{
-				ChannelName: "SumDumShiet",
+				ChannelName: "Random",
 				ID:          0,
 				Operators: []string{
 					"Bobo",

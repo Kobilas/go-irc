@@ -300,82 +300,175 @@ func recvChat(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
 }
 
-func exportData() {
+func exportData() (bool, error) {
 	var inp string
 	var err error
 	var dat []byte
 	fmt.Print("Append or truncate? (a/t) ")
 	fmt.Scan(&inp)
 	if inp == "a" {
+		log.Println("Appending to export files")
 		userF, err := os.OpenFile("users.json", os.O_RDWR|os.O_CREATE, 0770)
-		dat, err = json.Marshal(Users)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, opening users.json in O_RDWR|O_CREATE: %s", err)
+		}
+		defer userF.Close()
+		dat, err = ioutil.ReadAll(userF)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, reading all from users.json: %s", err)
+		}
+		// create new scope for tmpUsers to automatically garbage collect
+		// tmpUsers after finished with compiling data to marshaled bytes
+		{
+			var tmpUsers = make(map[string]User)
+			json.Unmarshal(dat, &tmpUsers)
+			for k, v := range Users {
+				if _, ok := tmpUsers[k]; !ok {
+					tmpUsers[k] = v
+				}
+			}
+			dat, err = json.Marshal(tmpUsers)
+			if err != nil {
+				return false, fmt.Errorf("error: exportData, marshaling data from users.json and Users: %s", err)
+			}
+		}
 		_, err = userF.Write(dat)
-		userF.Close()
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, writing data to users.json: %s", err)
+		}
 		chanF, err := os.OpenFile("channels.json", os.O_RDWR|os.O_CREATE, 0770)
-		dat, err = json.Marshal(ChatChannels)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, opening channels.json in O_RDWR|O_CREATE: %s", err)
+		}
+		defer chanF.Close()
+		dat, err = ioutil.ReadAll(chanF)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, reading all from channels.json: %s", err)
+		}
+		{
+			var tmpChannels = make(map[string]*ChatChannel)
+			json.Unmarshal(dat, &tmpChannels)
+			for k, v := range ChatChannels {
+				if _, ok := tmpChannels[k]; !ok {
+					tmpChannels[k] = v
+				}
+			}
+			dat, err = json.Marshal(tmpChannels)
+			if err != nil {
+				return false, fmt.Errorf("error: exportData, marshaling data from channels.json and ChatChannels: %s", err)
+			}
+		}
 		_, err = chanF.Write(dat)
-		chanF.Close()
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, writing data to channels.json: %s", err)
+		}
 		msgF, err := os.OpenFile("messages.json", os.O_RDWR|os.O_CREATE, 0770)
-		dat, err = json.Marshal(PrivateMessages)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, opening messages.json in O_RDWR|O_CREATE: %s", err)
+		}
+		dat, err = ioutil.ReadAll(chanF)
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, reading all from messages.json: %s", err)
+		}
+		{
+			var tmpMessages = make(map[string]map[string][]Chat)
+			json.Unmarshal(dat, &tmpMessages)
+			for k0, v0 := range PrivateMessages {
+				tmpMessages[k0] = v0
+				for k1, v1 := range PrivateMessages[k0] {
+					if _, ok := tmpMessages[k0][k1]; !ok {
+						tmpMessages[k0][k1] = v1
+					}
+				}
+			}
+			dat, err = json.Marshal(tmpMessages)
+			if err != nil {
+				return false, fmt.Errorf("error: exportData, marshaling data from messages.json and PrivateMessages: %s", err)
+			}
+		}
 		_, err = msgF.Write(dat)
-		msgF.Close()
-		return
+		if err != nil {
+			return false, fmt.Errorf("error: exportData, writing data to messages.json: %s", err)
+		}
+		return true, nil
 	}
+	log.Println("Truncating export files")
 	userF, err := os.OpenFile("users.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, opening users.json in O_RDWR|O_CREATE|O_TRUNC: %s", err)
+	}
+	defer userF.Close()
 	dat, err = json.Marshal(Users)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, marshaling data from Users: %s", err)
+	}
 	_, err = userF.Write(dat)
-	userF.Close()
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, writing data to users.json: %s", err)
+	}
 	chanF, err := os.OpenFile("channels.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, opening channels.json in O_RDWR|O_CREATE|O_TRUNC: %s", err)
+	}
+	defer chanF.Close()
 	dat, err = json.Marshal(ChatChannels)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, marshaling data from ChatChannels: %s", err)
+	}
 	_, err = chanF.Write(dat)
-	chanF.Close()
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, writing data to channels.json: %s", err)
+	}
 	msgF, err := os.OpenFile("messages.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, opening messages.json in O_RDWR|O_CREATE|O_TRUNC: %s", err)
+	}
+	defer msgF.Close()
 	dat, err = json.Marshal(PrivateMessages)
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, marshaling data from PrivateMessages: %s", err)
+	}
 	_, err = msgF.Write(dat)
-	msgF.Close()
+	if err != nil {
+		return false, fmt.Errorf("error: exportData, writing data to messages.json: %s", err)
+	}
+	return true, nil
 }
 
-func importData() {
+func importData() (bool, error) {
 	var err error
 	var dat []byte
 	userF, err := os.OpenFile("users.json", os.O_RDONLY, 0770)
 	if err != nil {
-		log.Printf("error: importData, opening users.json in O_RDONLY: %s\n", err)
-		goto FAILED_USER_IMPORT
+		return false, fmt.Errorf("error: importData, opening users.json in O_RDONLY: %s", err)
 	}
+	defer userF.Close()
 	dat, err = ioutil.ReadAll(userF)
-	userF.Close()
 	if err != nil {
-		log.Printf("error: importData, reading from existing users.json: %s\n", err)
-		goto FAILED_USER_IMPORT
+		return false, fmt.Errorf("error: importData, reading from existing users.json: %s", err)
 	}
 	json.Unmarshal(dat, &Users)
-FAILED_USER_IMPORT:
 	chanF, err := os.OpenFile("channels.json", os.O_RDONLY, 0770)
 	if err != nil {
-		log.Printf("error: importData, opening channels.json in O_RDONLY: %s\n", err)
-		goto FAILED_CHANNEL_IMPORT
+		return false, fmt.Errorf("error: importData, opening channels.json in O_RDONLY: %s", err)
 	}
+	defer chanF.Close()
 	dat, err = ioutil.ReadAll(chanF)
-	chanF.Close()
 	if err != nil {
-		log.Printf("error: importData, reading from existing channels.json: %s\n", err)
-		goto FAILED_CHANNEL_IMPORT
+		return false, fmt.Errorf("error: importData, reading from existing channels.json: %s", err)
 	}
 	json.Unmarshal(dat, &ChatChannels)
-FAILED_CHANNEL_IMPORT:
 	msgF, err := os.OpenFile("messages.json", os.O_RDONLY, 0770)
 	if err != nil {
-		log.Printf("error: importData, opening messages.json in O_RDONLY: %s\n", err)
-		return
+		return false, fmt.Errorf("error: importData, opening messages.json in O_RDONLY: %s", err)
 	}
+	defer msgF.Close()
 	dat, err = ioutil.ReadAll(msgF)
-	msgF.Close()
 	if err != nil {
-		log.Printf("error: importData, reading from existing messages.json: %s\n", err)
-		return
+		return false, fmt.Errorf("error: importData, reading from existing messages.json: %s", err)
 	}
 	json.Unmarshal(dat, &PrivateMessages)
+	return true, nil
 }
 
 // handles different requests using Gorilla mux router
@@ -473,19 +566,33 @@ func main() {
 		},
 	}
 	var inp string
-	fmt.Print("Import data? (y/n)")
+	fmt.Print("Import data? (y/n) ")
 	fmt.Scan(&inp)
 	if inp == "y" {
-		importData()
+		log.Println("Importing data")
+		_, err := importData()
+		if err != nil {
+			log.Println("Failed to import")
+			fmt.Println("Failed to import")
+		}
+	} else {
+		log.Println("Skipped importing")
 	}
 	fmt.Println("Starting server, enter q to quit")
 	wrapHandler()
 	for inp != "q" {
 		fmt.Scan(&inp)
 	}
-	fmt.Print("Export data? (y/n)")
+	fmt.Print("Export data? (y/n) ")
 	fmt.Scan(&inp)
 	if inp == "y" {
-		exportData()
+		log.Println("Exporting data")
+		_, err := exportData()
+		if err != nil {
+			log.Println("Failed to export")
+			fmt.Println("Failed to export")
+		}
+	} else {
+		log.Println("Skipped exporting")
 	}
 }

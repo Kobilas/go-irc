@@ -234,7 +234,7 @@ func checkCommands(line string) {
 	case "/channels":
 		fmt.Println(showAllChannels())
 	case "/create":
-		if len(tok) >= 3 {
+		if len(tok) >= 2 {
 			createChannel(tok[1], tok[2:]...)
 		} else {
 			fmt.Println("error: checkCommands, failed /create call; check out /help for more info")

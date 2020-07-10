@@ -38,12 +38,12 @@ func TestCreateChannel(t *testing.T){
     }))
 	defer ts.Close() 
 
-	ans := createChannel("TestChannel", "Jass")
+	ans := createChannel("NewStuff", "Jass")
 	channel := showAllChannels()
 	if ans == "FAIL"{
-		t.Errorf("createChannel('TestChannel', 'Jass') = %s; Should be a new channel", ans)
+		t.Errorf("createChannel('NewStuuf', 'Jass') = %s; Should be a new channel", ans)
 	}else{
-		fmt.Printf("List of all channels with new channel: %s", channel)
+		fmt.Printf("%s", channel)
 	}
 }
 

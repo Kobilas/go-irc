@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -299,6 +300,84 @@ func recvChat(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint: /chat/recv/{identifier}/{lastrecv}")
 }
 
+func exportData() {
+	var inp string
+	var err error
+	var dat []byte
+	fmt.Print("Append or truncate? (a/t) ")
+	fmt.Scan(&inp)
+	if inp == "a" {
+		userF, err := os.OpenFile("users.json", os.O_RDWR|os.O_CREATE, 0770)
+		dat, err = json.Marshal(Users)
+		_, err = userF.Write(dat)
+		userF.Close()
+		chanF, err := os.OpenFile("channels.json", os.O_RDWR|os.O_CREATE, 0770)
+		dat, err = json.Marshal(ChatChannels)
+		_, err = chanF.Write(dat)
+		chanF.Close()
+		msgF, err := os.OpenFile("messages.json", os.O_RDWR|os.O_CREATE, 0770)
+		dat, err = json.Marshal(PrivateMessages)
+		_, err = msgF.Write(dat)
+		msgF.Close()
+		return
+	}
+	userF, err := os.OpenFile("users.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	dat, err = json.Marshal(Users)
+	_, err = userF.Write(dat)
+	userF.Close()
+	chanF, err := os.OpenFile("channels.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	dat, err = json.Marshal(ChatChannels)
+	_, err = chanF.Write(dat)
+	chanF.Close()
+	msgF, err := os.OpenFile("messages.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	dat, err = json.Marshal(PrivateMessages)
+	_, err = msgF.Write(dat)
+	msgF.Close()
+}
+
+func importData() {
+	var err error
+	var dat []byte
+	userF, err := os.OpenFile("users.json", os.O_RDONLY, 0770)
+	if err != nil {
+		log.Printf("error: importData, opening users.json in O_RDONLY: %s\n", err)
+		goto FAILED_USER_IMPORT
+	}
+	dat, err = ioutil.ReadAll(userF)
+	userF.Close()
+	if err != nil {
+		log.Printf("error: importData, reading from existing users.json: %s\n", err)
+		goto FAILED_USER_IMPORT
+	}
+	json.Unmarshal(dat, &Users)
+FAILED_USER_IMPORT:
+	chanF, err := os.OpenFile("channels.json", os.O_RDONLY, 0770)
+	if err != nil {
+		log.Printf("error: importData, opening channels.json in O_RDONLY: %s\n", err)
+		goto FAILED_CHANNEL_IMPORT
+	}
+	dat, err = ioutil.ReadAll(chanF)
+	chanF.Close()
+	if err != nil {
+		log.Printf("error: importData, reading from existing channels.json: %s\n", err)
+		goto FAILED_CHANNEL_IMPORT
+	}
+	json.Unmarshal(dat, &ChatChannels)
+FAILED_CHANNEL_IMPORT:
+	msgF, err := os.OpenFile("messages.json", os.O_RDONLY, 0770)
+	if err != nil {
+		log.Printf("error: importData, opening messages.json in O_RDONLY: %s\n", err)
+		return
+	}
+	dat, err = ioutil.ReadAll(msgF)
+	msgF.Close()
+	if err != nil {
+		log.Printf("error: importData, reading from existing messages.json: %s\n", err)
+		return
+	}
+	json.Unmarshal(dat, &PrivateMessages)
+}
+
 // handles different requests using Gorilla mux router
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
@@ -327,6 +406,10 @@ func handleRequests() {
 	// lastrecv is the unix timestamp of the lastrecv'd message
 	router.HandleFunc("/chat/recv/{identifier}/{lastrecv}", recvChat)
 	log.Fatalln(http.ListenAndServe(":7777", router))
+}
+
+func wrapHandler() {
+	go handleRequests()
 }
 
 func main() {
@@ -389,5 +472,20 @@ func main() {
 			"Jasmine": []Chat{},
 		},
 	}
-	handleRequests()
+	var inp string
+	fmt.Print("Import data? (y/n)")
+	fmt.Scan(&inp)
+	if inp == "y" {
+		importData()
+	}
+	fmt.Println("Starting server, enter q to quit")
+	wrapHandler()
+	for inp != "q" {
+		fmt.Scan(&inp)
+	}
+	fmt.Print("Export data? (y/n)")
+	fmt.Scan(&inp)
+	if inp == "y" {
+		exportData()
+	}
 }

@@ -3,12 +3,11 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
-	//"io/ioutil"
-	//"log"
 	"testing"
 	"fmt"
 )
 
+//Create a user for testing purposes
 func init(){
 	nickname = "tester"
 	createUser("tester")
@@ -37,7 +36,7 @@ func TestCreateChannel(t *testing.T){
 	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "")
     }))
-	defer ts.Close()
+	defer ts.Close() 
 
 	ans := createChannel("TestChannel", "Jass")
 	channel := showAllChannels()
@@ -79,6 +78,7 @@ func TestSendPrivateMessage(t *testing.T){
 		fmt.Printf("sendPrivateMessage() = %s", ans)
 	}
 }
+
 //Test Case 5: 
 //Send a private message to a non existing user
 func TestInvalidPrivateMessage(t *testing.T){
@@ -94,7 +94,7 @@ func TestInvalidPrivateMessage(t *testing.T){
 }
 
 //Test Case 6:
-//Create a user that already exists
+//Create a user 
 func TestCreateUser(t *testing.T){
 	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "")

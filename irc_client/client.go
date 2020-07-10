@@ -15,7 +15,7 @@ import (
 
 var channel string
 var nickname string
-var domain string = "http://54.172.120.142:7777/"
+var domain string = "http://54.208.28.134:7777/"
 
 var privateTimestamp int64
 var channelTimestamp int64
@@ -77,7 +77,7 @@ func createChannel(channelName string, names ...string) string {
 	return string(data)
 }
 
-func joinChannel(channelName string) error{
+func joinChannel(channelName string) error {
 	channel = channelName
 	jsonData := map[string]string{"user": nickname, "channel": channelName}
 	jsonValue, _ := json.Marshal(jsonData)
@@ -199,7 +199,7 @@ func readUser(name string) bool {
 	}
 }
 
-func createUser(name string) error{
+func createUser(name string) error {
 
 	jsonData := User{
 		Nickname:   name,

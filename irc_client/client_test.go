@@ -94,8 +94,8 @@ func TestInvalidPrivateMessage(t *testing.T){
 }
 
 //Test Case 6:
-//Create a user 
-func TestCreateUser(t *testing.T){
+//Find a user 
+func TestFindUser(t *testing.T){
 	ts := httptest.NewServer(http.HandlerFunc(func( w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "")
 	}))

@@ -101,9 +101,9 @@ func TestCreateUser(t *testing.T){
 	}))
 	defer ts.Close()
 
-	ans := createUser("Jass")
-	if ans != nil{
-		t.Errorf("createUser('Jass') = %s; Should be: 'Logged in as: Jass", ans)
+	ans := readUser("Darius")
+	if ans != true{
+		t.Errorf("readUser('Darius') = %t; Should be: 'true'", ans)
 	}
 }
 
